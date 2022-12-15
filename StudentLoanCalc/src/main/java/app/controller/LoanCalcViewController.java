@@ -94,6 +94,15 @@ public class LoanCalcViewController implements Initializable {
 	private Label lblTotalEscrow;
 
 	@FXML
+	private TextField txtAdjustPeriod;
+
+	@FXML
+	private TextField txtAdjustLength;
+	
+	@FXML
+	private TextField txtAdjustRateMax;
+	
+	@FXML
 	private TableView<Payment> tvResults;
 
 	@FXML
@@ -113,6 +122,7 @@ public class LoanCalcViewController implements Initializable {
 
 	@FXML
 	private TableColumn<Payment, Double> colPrinciple;
+	
 	@FXML
 	private TableColumn<Payment, Double> colEscrow;
 
@@ -141,14 +151,11 @@ public class LoanCalcViewController implements Initializable {
 
 	@Override
 	public void initialize(URL location, ResourceBundle resources) {
-
-		//TODO: This is for you... so you don't have to type in values over and over.  
-		//	Uncomment the next three lines to set these default values
-		/*		
+	
 		LoanAmount.setText("75000");
 		InterestRate.setText("6.58");
 		NbrOfYears.setText("20");
-		*/
+		
 		cmbLoanType.getItems().addAll("Home", "Auto", "School");
 
 		cmbLoanType.getSelectionModel().selectFirst();
@@ -198,6 +205,9 @@ public class LoanCalcViewController implements Initializable {
 		LoanAmount.clear();
 		InterestRate.clear();
 		NbrOfYears.clear();
+		txtAdjustPeriod.clear();
+		txtAdjustLength.clear();
+		txtAdjustRateMax.clear();
 		EscrowAmount.clear();
 		PaymentStartDate.getEditor().clear();
 		PaymentStartDate.setValue(null);
@@ -209,6 +219,15 @@ public class LoanCalcViewController implements Initializable {
 		lblEscrow.setVisible((strLoanType == "Home"));
 	}
 
+	@FXML
+	private void btnSetDefaultAdjustments(KeyEvent event) {
+		this.txtAdjustLength.setText(NbrOfYears.getText());
+		this.txtAdjustPeriod.setText("");
+		this.txtAdjustRateMax.setText("");
+		
+		btnClearResultsKeyPress(event);
+	}
+	
 	@FXML
 	private void btnClearResultsKeyPress(KeyEvent event) {
 		this.btnClearResults(null);
@@ -229,10 +248,14 @@ public class LoanCalcViewController implements Initializable {
 		hbChart.getChildren().clear();
 		stackedBarChart.getChildren().clear();
 		
-		lblInterestSaved.setText("");
 		
-		//TODO: The line above shows you how to clear lblInterestSaved.  Clear the rest of the calculated fields
-
+		lblTotalPayemnts.setText("");
+		lblTotalInterest.setText("");
+		lblTotalEscrow.setText("");
+		lblInterestSaved.setText("");
+		lblPaymentsSaved.setText("");
+		lblMonthlyPayment.setText("");
+		
 	}
 
 	private boolean ValidateData() {
@@ -247,16 +270,26 @@ public class LoanCalcViewController implements Initializable {
 			goodtogo = false;
 		}
 		
-		//TODO: The line above validates LoanAmount.  To fail validation, add to 'contentText' and set 'goodtoGo' to false
-		// 	add the following validaitons:
-		
-		//TODO: Validate InterestRate is between 0 and 20.  Make sure there's no alpha characters.
+		if (InterestRate.getText().trim().isEmpty() || !(Double.parseDouble(InterestRate.getText().trim()) > 0)
+				|| (Double.parseDouble(InterestRate.getText().trim()) < 20) || InterestRate.getText().matches("%[a-zA-Z]%")) {
+			contentText.append("Rate must be numerical value between 0 and 20. \n");
+			goodtogo = false;
+		}
 
-		//TODO: Validate NbrOfYears is > 0
-		
-		//TODO: Validate EscrowAmount >= 0
-		
-		//TODO: Validate AdditionalPayemnt >= 0
+		if (NbrOfYears.getText().trim().isEmpty() || (Double.parseDouble(NbrOfYears.getText().trim()) < 0)) {
+			contentText.append("Loan term must be a positive double. \n");
+			goodtogo = false;
+		}
+
+		if (!(Double.parseDouble(EscrowAmount.getText().trim()) > 0)) {
+			contentText.append("Escrow amount must be a positive double. \n");
+			goodtogo = false;
+		}
+
+		if (!(Double.parseDouble(AdditionalPayment.getText().trim()) > 0)) {
+			contentText.append("Additional payment must be a positive double. \n");
+			goodtogo = false;
+		}
 		
 		if (!goodtogo) {
 			Alert fail = new Alert(AlertType.ERROR);
@@ -285,14 +318,20 @@ public class LoanCalcViewController implements Initializable {
 		// Examples- how to read data from the form
 		double dLoanAmount = Double.parseDouble(LoanAmount.getText());
 		double dInterestRate = Double.parseDouble(InterestRate.getText()) / 100;
+		double dAdjLength = Double.parseDouble(txtAdjustLength.getText());
+		double dAdjPeriod = Double.parseDouble(txtAdjustPeriod.getText());
+		double dAdjRateMax = Double.parseDouble(txtAdjustRateMax.getText());
 		int dNbrOfYears = Integer.parseInt(NbrOfYears.getText());
 		double dAdditionalPayment = (this.AdditionalPayment.getText().isEmpty() ? 0
 				: Double.parseDouble(AdditionalPayment.getText()));
 		double dEscrow = (this.EscrowAmount.getText().isEmpty() ? 0 : Double.parseDouble(this.EscrowAmount.getText()));
 		LocalDate localDate = PaymentStartDate.getValue();
 
-		Loan loanExtra = new Loan(dLoanAmount, dInterestRate, dNbrOfYears, localDate, dAdditionalPayment, dEscrow);
-		Loan loanNoExtra = new Loan(dLoanAmount, dInterestRate, dNbrOfYears, localDate, 0, dEscrow);
+		Loan loanExtra = new Loan(dLoanAmount, dInterestRate, dAdjLength, 
+				dAdjPeriod, dAdjRateMax, dNbrOfYears, localDate, dAdditionalPayment, dEscrow);
+		
+		Loan loanNoExtra = new Loan(dLoanAmount, dInterestRate, dAdjLength, 
+				dAdjPeriod, dAdjRateMax,dNbrOfYears, localDate, 0, dEscrow);
 
 		for (Payment p : loanExtra.getLoanPayments()) {
 			paymentList.add(p);
@@ -308,7 +347,7 @@ public class LoanCalcViewController implements Initializable {
 				.setText(String.valueOf(loanNoExtra.getLoanPayments().size() - loanExtra.getLoanPayments().size()));
 
 		lblMonthlyPayment.setText(fmtCurrency.format(
-				loanExtra.GetPMT() + 
+				loanExtra.getPMT() + 
 				+ loanExtra.getAdditionalPayment() + loanExtra.getEscrow()));		
 		lblTotalEscrow.setText(fmtCurrency.format(loanExtra.getTotalEscrow()));
 		

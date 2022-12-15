@@ -2,6 +2,8 @@ package pkgLogic;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 
 import org.apache.poi.ss.formula.functions.FinanceLib;
 
@@ -9,59 +11,87 @@ public class Loan {
 	private double LoanAmount;
 	private double LoanBalanceEnd;
 	private double InterestRate;
+	private double AdjPeriod;
+	private double AdjLength;
+	private double AdjRateMax;
 	private int LoanPaymentCnt;
 	private boolean bCompoundingOption;
 	private LocalDate StartDate;
 	private double AdditionalPayment;
 	private double Escrow;
+	private int NbrOfYears;
+
+	private HashMap<Integer, Double> hmRates = new HashMap<Integer, Double>();
 
 	private ArrayList<Payment> loanPayments = new ArrayList<Payment>();
-
-	public Loan(double loanAmount, double interestRate, int loanPaymentCnt, LocalDate startDate,
-			double additionalPayment, double escrow) {
+		
+	public Loan(double loanAmount, double interestRate, double adjLength, double adjPeriod, 
+			double adjRateMax, int loanPaymentCnt, LocalDate startDate, double additionalPayment, double escrow) {
 		super();
+		
+		for(int i = 1; i <= loanPaymentCnt; i++) {
+			if (i == adjPeriod && adjLength != 0) {
+				interestRate += adjRateMax;
+			}
+			hmRates.put(i, interestRate);
+		}
+		
 		LoanAmount = loanAmount;
-		InterestRate = interestRate;
+		AdjPeriod = adjPeriod;
+		AdjLength = adjLength;
+		AdjRateMax = adjRateMax;
 		LoanPaymentCnt = loanPaymentCnt * 12;
 		StartDate = startDate;
 		AdditionalPayment = additionalPayment;
 		bCompoundingOption = false;
 		LoanBalanceEnd = 0;
+		NbrOfYears = 0; 
 		this.Escrow = escrow;
 
 		double RemainingBalance = LoanAmount;
 		int PaymentCnt = 1;
 		
-		//TODO: Create a payment until 'remaining balance' is < PMT + Additional Payment
-		//		Hint: use while loop
-
-		//TODO: Create final payment (last payment might be partial payment)
+		while(RemainingBalance >= (this.getPMT() + this.AdditionalPayment)) {
+			this.getInterestRate(PaymentCnt);
+			Payment payment = new Payment(RemainingBalance, PaymentCnt++, startDate, this, false);
+			RemainingBalance = payment.getEndingBalance();
+			startDate = startDate.plusMonths(1);
+			loanPayments.add(payment);
+			
+		}
+		Payment payment = new Payment(RemainingBalance, PaymentCnt++, startDate, this, false);
+		loanPayments.add(payment);
 	}
 
-	public double GetPMT() {
+	public double getPMT() {
 		double PMT = 0;
-		//TODO: Calculate PMT (use FinanceLib.pmt)
+		PMT = FinanceLib.pmt(this.InterestRate/12, this.LoanPaymentCnt, 
+				this.LoanAmount, this.LoanBalanceEnd, isbCompoundingOption());
 		return Math.abs(PMT);
 	}
 
 	public double getTotalPayments() {
 		double tot = 0;
-		//TODO: Calculate total payments
+		for (Payment val : this.loanPayments) {
+			tot += val.getPayment();
+		}
 		return tot;
 	}
 
 	public double getTotalInterest() {
-
 		double interest = 0;
-		//TODO: Calculate total Interest
+		for(Payment val : this.loanPayments) {
+			interest += val.getInterestPayment();
+		}
 		return interest;
 
 	}
 
 	public double getTotalEscrow() {
-
 		double escrow = 0;
-		//TODO: Calculate total escrow
+		for(Payment val : this.loanPayments) {
+			escrow += val.getEscrowPayment();
+		}
 		return escrow;
 
 	}
@@ -82,8 +112,8 @@ public class Loan {
 		LoanBalanceEnd = loanBalanceEnd;
 	}
 
-	public double getInterestRate() {
-		return InterestRate;
+	public double getInterestRate(int PaymentCnt) {
+		return hmRates.get(PaymentCnt);
 	}
 
 	public void setInterestRate(double interestRate) {

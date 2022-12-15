@@ -8,7 +8,7 @@ public class Payment {
 
 	private int PaymentNbr;
 	private LocalDate DueDate;
-	private double Payment;
+	private static double Payment;
 	private String PaymentFmt;
 
 	private double AdditionalPayment;
@@ -17,7 +17,7 @@ public class Payment {
 	private double EscrowPayment;
 	private String EscrowPaymentFmt;
 
-	private double InterestPayment;
+	private static double InterestPayment;
 	private String InterestPaymentFmt;
 
 	private double Principle;
@@ -33,17 +33,17 @@ public class Payment {
 		this.PaymentNbr = paymentNbr;
 		this.EscrowPayment = loan.getEscrow();
 		this.DueDate = dueDate;
-		this.InterestPayment = beginningBalance * (loan.getInterestRate() / 12);
+		this.InterestPayment = beginningBalance * (loan.getInterestRate(paymentNbr) / 12);
 
 		if (bLastPayment) {
-			this.Payment = beginningBalance;// + (beginningBalance * (loan.getInterestRate() / 12));
+			this.Payment = beginningBalance;
 			this.Principle = beginningBalance - this.InterestPayment;
 			this.AdditionalPayment = 0;
 			this.EndingBalance = 0;
 
 		} else {
-			this.Payment = loan.GetPMT() + loan.getAdditionalPayment();
-			this.Principle = loan.GetPMT() + loan.getAdditionalPayment() - this.InterestPayment;
+			this.Payment = loan.getPMT() + loan.getAdditionalPayment();
+			this.Principle = loan.getPMT() + loan.getAdditionalPayment() - this.InterestPayment;
 			this.AdditionalPayment = loan.getAdditionalPayment();
 			this.EndingBalance = beginningBalance - this.Principle;
 		}
